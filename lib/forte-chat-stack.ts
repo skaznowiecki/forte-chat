@@ -1,19 +1,28 @@
-import { Duration, Stack, StackProps } from 'aws-cdk-lib';
-import * as sns from 'aws-cdk-lib/aws-sns';
-import * as subs from 'aws-cdk-lib/aws-sns-subscriptions';
-import * as sqs from 'aws-cdk-lib/aws-sqs';
-import { Construct } from 'constructs';
+import { Stack, StackProps } from "aws-cdk-lib";
+import { Construct } from "constructs";
+import { constructApiGateway } from "./resources/api-gateway";
+import { helloWorld } from "./functions/hello-world";
+import { constructDocumentBucket } from "./resources/document-bucket";
+import { constructParameterStore } from "./resources/parameter-store";
+import { constructDocumentStoreTable } from "./resources/document-store-table";
+import { handlers } from "./functions/handler";
+
+export interface ForteChatStackProps extends StackProps {
+  domainName: string;
+}
 
 export class ForteChatStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
+  constructor(scope: Construct, id: string, props: ForteChatStackProps) {
     super(scope, id, props);
 
-    const queue = new sqs.Queue(this, 'ForteChatQueue', {
-      visibilityTimeout: Duration.seconds(300)
-    });
+    const documentBucket = constructDocumentBucket(this, props);
+    const parameterStore = constructParameterStore(this);
+    const documentStoreTable = constructDocumentStoreTable(this);
 
-    const topic = new sns.Topic(this, 'ForteChatTopic');
+    const apiGateway = constructApiGateway(this);
 
-    topic.addSubscription(new subs.SqsSubscription(queue));
+    handlers(this, parameterStore, documentBucket, documentStoreTable);
+
+    helloWorld(this, apiGateway);
   }
 }
